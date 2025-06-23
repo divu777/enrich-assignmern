@@ -3,11 +3,35 @@ import dotenv from 'dotenv'
 import { v6 as uuid} from 'uuid';
 import {Queue ,Worker} from 'bullmq'
 import IORedis from 'ioredis';
-import mongoose from 'mongoose';
+import mongoose, { now } from 'mongoose';
 import axios from 'axios';
-
 const axiosInstance =  axios.create({baseURL:"http://localhost:3000/vendor-webhook"})
 
+type ratelimitType ={
+    sync : number [],
+    async : number [],
+    limit : number ,
+    windowMs:number 
+}
+
+const rateLimit:ratelimitType = {
+    sync : [] ,
+    async : [] , 
+    limit : 5,
+    windowMs : 1000
+}
+
+const limitVendors = (vendor : 'sync' | 'async')=>{
+    const now = Date.now()
+    rateLimit[vendor] = rateLimit[vendor].filter(req=>now-req < rateLimit.windowMs);
+
+    if(rateLimit[vendor].length>=rateLimit.limit){
+        return true
+    }
+
+    rateLimit[vendor].push(now);
+    return false;
+}
 
 
 const url = 'mongodb://db:27017/db'
@@ -117,7 +141,19 @@ app.get("/jobs/:id",async(req,res)=>{
     const id = req.params.id
     const result = await jobs.findOne({
         request_id:id
+    },{
+        _id:0
     })
+
+    if(!result){
+
+        res.send({
+            message:"no jobs with this id ",
+            success:false
+        })
+        return 
+    }
+
 
     res.send(result);
 })
