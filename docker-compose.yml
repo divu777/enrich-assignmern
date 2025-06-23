@@ -1,0 +1,32 @@
+services:
+    db:
+      image: mongo
+      container_name : mongodb
+      ports:
+        - '27017:27017'
+      volumes:
+        - db_db:/data/db
+
+    redis:
+      image: redis 
+      container_name : redis 
+      ports: 
+       - '6379:6379'
+
+    server:
+      build:
+        context: ./
+        dockerfile: Dockerfile
+      container_name : server 
+
+      ports:
+        - '3000:3000'
+      depends_on:
+        - redis 
+        - db
+      environment:
+        - PORT=3000
+
+volumes:
+  db_db:
+    
